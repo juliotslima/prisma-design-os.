@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full bg-gray-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prisma Design - Gestão de Pedidos e OS</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        @media print {
+            body * { visibility: hidden; }
+            #print-area, #print-area * { visibility: visible; }
+            #print-area { position: absolute; left: 0; top: 0; width: 100%; }
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col md:flex-row overflow-hidden text-gray-800">
+
+    <!-- Modal de Notificação / Mensagem Customizada -->
+    <div id="custom-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm hidden">
+        <div class="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl border border-gray-100 transform transition-all">
+            <div id="modal-icon" class="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 text-xl"></div>
+            <h3 id="modal-title" class="text-lg font-bold text-center text-gray-900 mb-2"></h3>
+            <p id="modal-message" class="text-sm text-center text-gray-600 mb-6"></p>
+            <div id="modal-actions" class="flex justify-center gap-3">
+                <button id="modal-btn-ok" onclick="closeModal()" class="w-full bg-indigo-600 text-white font-medium py-2.5 px-4 rounded-xl hover:bg-indigo-700 transition shadow-sm">Entendido</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar / Navegação -->
+    <aside class="w-full md:w-64 bg-slate-900 text-slate-300 flex flex-col justify-between shrink-0 shadow-lg z-20">
+        <div>
+            <!-- Logo / Cabeçalho -->
+            <div class="p-6 flex items-center gap-3 border-b border-slate-800">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-violet-500 flex items-center justify-center text-white font-bold text-xl shadow-md">
+                    <i class="fa-solid fa-mug-hot"></i>
+                </div>
+                <div>
+                    <h1 class="text-white font-bold text-lg tracking-wide">Prisma Design</h1>
+                    <p class="text-xs text-indigo-400 font-medium">Controle de Pedidos & OS</p>
+                </div>
+            </div>
+
+            <!-- Menu Links -->
+            <nav class="p-4 space-y-1.5">
+                <button onclick="switchTab('dashboard')" id="nav-dashboard" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition text-white bg-indigo-600 shadow-sm">
+                    <i class="fa-solid fa-chart-pie w-5 text-center"></i> Dashboard
+                </button>
+                <button onclick="switchTab('orders')" id="nav-orders" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition text-slate-400 hover:text-white hover:bg-slate-800">
+                    <i class="fa-solid fa-clipboard-list w-5 text-center"></i> Pedidos & OS
+                </button>
+                <button onclick="openNewOrderModal()" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition text-slate-400 hover:text-white hover:bg-slate-800">
+                    <i class="fa-solid fa-circle-plus w-5 text-center text-emerald-400"></i> Nova Ordem de Serviço
+                </button>
+            </nav>
+        </div>
+
+        <!-- Rodapé do Menu -->
+        <div class="p-4 border-t border-slate-800 text-xs text-slate-500 text-center">
+            Enviando para todo o Brasil 🇧🇷<br>v2.4 Profissional
+        </div>
+    </aside>
+
+    <!-- Conteúdo Principal -->
+    <main class="flex-1 flex flex-col h-full overflow-y-auto bg-gray-50">
+        
+        <!-- Header Superior -->
+        <header class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between shadow-xs sticky top-0 z-10">
+            <div class="flex items-center gap-4">
+                <h2 id="current-page-title" class="text-xl font-bold text-gray-800">Dashboard Geral</h2>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="openNewOrderModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-xl text-sm shadow-sm transition flex items-center gap-2">
+                    <i class="fa-solid fa-plus"></i> Nova OS / Pedido
+                </button>
+            </div>
+        </header>
+
+        <!-- Container das Abas -->
+        <div class="p-6 max-w-7xl w-full mx-auto flex-1">
+
+            <!-- ABA 1: DASHBOARD -->
+            <section id="tab-dashboard" class="space-y-6">
+                <!-- Cards de Indicadores -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs flex flex-col justify-between">
+                        <div class="flex items-center justify-between text-gray-500 mb-2">
+                            <span class="text-xs font-semibold uppercase tracking-wider">Em Aberto</span>
+                            <div class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                                <i class="fa-solid fa-clock"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-baseline justify-between">
+                            <h3 id="stat-open" class="text-2xl font-bold text-gray-900">0</h3>
+                            <span class="text-xs text-amber-600 font-medium">Orçamento/Arte</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs flex flex-col justify-between">
+                        <div class="flex items-center justify-between text-gray-500 mb-2">
+                            <span class="text-xs font-semibold uppercase tracking-wider">Em Produção</span>
+                            <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                                <i class="fa-solid fa-gears"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-baseline justify-between">
+                            <h3 id="stat-production" class="text-2xl font-bold text-gray-900">0</h3>
+                            <span class="text-xs text-indigo-600 font-medium">Na fábrica</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs flex flex-col justify-between">
+                        <div class="flex items-center justify-between text-gray-500 mb-2">
+                            <span class="text-xs font-semibold uppercase tracking-wider">Concluídos</span>
+                            <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                                <i class="fa-solid fa-box-archive"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-baseline justify-between">
+                            <h3 id="stat-completed" class="text-2xl font-bold text-gray-900">0</h3>
+                            <span class="text-xs text-blue-600 font-medium">Prontos p/ envio</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs flex flex-col justify-between">
+                        <div class="flex items-center justify-between text-gray-500 mb-2">
+                            <span class="text-xs font-semibold uppercase tracking-wider">Enviados / Faturados</span>
+                            <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                                <i class="fa-solid fa-truck-fast"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-baseline justify-between">
+                            <h3 id="stat-shipped" class="text-2xl font-bold text-gray-900">0</h3>
+                            <span class="text-xs text-emerald-600 font-medium">Em trânsito / Entregues</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs flex flex-col justify-between sm:col-span-2 lg:col-span-1">
+                        <div class="flex items-center justify-between text-gray-500 mb-2">
+                            <span class="text-xs font-semibold uppercase tracking-wider">Faturamento Mês</span>
+                            <div class="w-8 h-8 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center">
+                                <i class="fa-solid fa-wallet"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-baseline justify-between">
+                            <h3 id="stat-revenue" class="text-xl font-bold text-gray-900">R$ 0,00</h3>
+                            <span class="text-xs text-violet-600 font-medium">Total</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Seção de Acesso Rápido / Últimos Pedidos -->
+                <div class="bg-white rounded-2xl border border-gray-200 shadow-xs p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-base font-bold text-gray-900">Pedidos Recentes</h3>
+                        <button onclick="switchTab('orders')" class="text-sm font-medium text-indigo-600 hover:text-indigo-800">Ver todos</button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="border-b border-gray-100 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                                    <th class="py-3 px-4">OS #</th>
+                                    <th class="py-3 px-4">Cliente</th>
+                                    <th class="py-3 px-4">Produto</th>
+                                    <th class="py-3 px-4">Qtd</th>
+                                    <th class="py-3 px-4">Destino</th>
+                                    <th class="py-3 px-4">Status</th>
+                                    <th class="py-3 px-4 text-right">Valor Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recent-orders-table" class="divide-y divide-gray-100 text-sm">
+                                <!-- Inserido via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ABA 2: GESTÃO DE PEDIDOS E LISTAGEM -->
+            <section id="tab-orders" class="space-y-6 hidden">
+                <div class="bg-white rounded-2xl border border-gray-200 shadow-xs p-6">
+                    <!-- Filtros e Busca -->
+                    <div class="flex flex-col md:flex-row gap-4 items-center justify-between mb-6">
+                        <div class="w-full md:w-96 relative">
+                            <i class="fa-solid fa-search absolute left-3.5 top-3.5 text-gray-400"></i>
+                            <input type="text" id="search-input" oninput="filterOrders()" placeholder="Buscar por cliente, CPF/CNPJ ou OS..." class="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500 transition">
+                        </div>
+                        <div class="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
+                            <select id="status-filter" onchange="filterOrders()" class="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-700 focus:outline-none focus:border-indigo-500 transition">
+                                <option value="ALL">Todos os Status</option>
+                                <option value="Orçamento">Orçamento</option>
+                                <option value="Aguardando Arte">Aguardando Arte</option>
+                                <option value="Em Produção">Em Produção</option>
+                                <option value="Concluído">Concluído</option>
+                                <option value="Enviado">Enviado</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Tabela de Pedidos Completa -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="border-b border-gray-100 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                                    <th class="py-3 px-4">OS #</th>
+                                    <th class="py-3 px-4">Data</th>
+                                    <th class="py-3 px-4">Cliente</th>
+                                    <th class="py-3 px-4">Produto</th>
+                                    <th class="py-3 px-4">UF / Destino</th>
+                                    <th class="py-3 px-4">Status</th>
+                                    <th class="py-3 px-4">Total</th>
+                                    <th class="py-3 px-4 text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="full-orders-table" class="divide-y divide-gray-100 text-sm">
+                                <!-- Inserido via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- MODAL DE CRIAÇÃO / EDIÇÃO DE ORDEM DE SERVIÇO -->
+    <div id="order-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm hidden p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-3xl w-full shadow-2xl border border-gray-100 overflow-hidden my-8">
+            <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-file-invoice text-indigo-400"></i>
+                    <h3 id="modal-order-title" class="font-bold text-lg">Nova Ordem de Serviço / Pedido</h3>
+                </div>
+                <button onclick="closeOrderModal()" class="text-slate-400 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            
+            <form id="order-form" onsubmit="saveOrder(event)" class="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
+                <input type="hidden" id="order-id">
+                
+                <!-- Dados do Cliente -->
+                <div>
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-indigo-600 mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-user"></i> 1. Dados do Cliente & Envio (Brasil)
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Nome Completo / Empresa *</label>
+                            <input type="text" id="client-name" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-indigo-500" placeholder="Ex: Maria Silva">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">CPF ou CNPJ *</label>
+                            <input type="text" id="client-doc" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-indigo-500" placeholder="000.000.000-00">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">WhatsApp / Telefone *</label>
+                            <input type="text" id="client-phone" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-indigo-500" placeholder="(11) 99999-9999">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Estado (UF) para Envio *</label>
+                            <select id="client-state" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-indigo-500">
+                                <option value="">Selecione o Estado</option>
+                                <option value="AC">Acre (AC)</option><option value="AL">Alagoas (AL)</option><option value="AP">Amapá (AP)</option><option value="AM">Amazonas (AM)</option><option value="BA">Bahia (BA)</option><option value="CE">Ceará (CE)</option><option value="DF">Distrito Federal (DF)</option><option value="ES">Espírito Santo (ES)</option><option value="GO">Goiás (GO)</option><option value="MA">Maranhão (MA)</option><option value="MT">Mato Grosso (MT)</option><option value="MS">Mato Grosso do Sul (MS)</option><option value="MG">Minas Gerais (MG)</option><option value="PA">Pará (PA)</option><option value="PB">Paraíba (PB)</option><option value="PR">Paraná (PR)</option><option value="PE">Pernambuco (PE)</option><option value="PI">Piauí (PI)</option><option value="RJ">Rio de Janeiro (RJ)</option><option value="RN">Rio Grande do Norte (RN)</option><option value="RS">Rio Grande do Sul (RS)</option><option value="RO">Rondônia (RO)</option><option value="RR">Roraima (RR)</option><option value="SC">Santa Catarina (SC)</option><option value="SP">São Paulo (SP)</option><option value="SE">Sergipe (SE)</option><option value="TO">Tocantins (TO)</option>
+                            </select>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Endereço de Entrega Completo *</label>
+                            <input type="text" id="client-address" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-indigo-500" placeholder="Rua, Número, Bairro, CEP, Cidade">
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="border-gray-100">
+
+                <!-- Detalhes do Produto e Personalização -->
+                <div>
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-indigo-600 mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-mug-saucer"></i> 2. Detalhes da Caneca & Personalização
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Tipo de Caneca *</label>
+                            <select id="product-type" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-indigo-500">
+                                <option value="Inox Térmica">Inox Térmica</option>
+                                <option value="Cerâmica Branca">Cerâmica Branca</option>
+                                <option value="Cerâmica Alça Cor">Cerâmica Alça Cor</option>
+                                <option value="Polímero (Plástico)">Polímero (Plástico)</option>
+                                <option value="Caneca Choque/Vidro">Caneca Choque/Vidro</option>
+                                <option value="Outro Brinde">Outro Brinde</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Quantidade *</label>
+                            <input type="number" id="product-qty" min="1" value="1" oninput="calcTotal()" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Cor da Caneca</label>
+                            <input type="text" id="product-color" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-indigo-500" placeholder="Ex: Branca, Preta, Inox Escovado">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Método de Gravação *</label>
+                            <select id="product-print-method" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-indigo-500">
+                                <option value="Sublimação">Sublimação</option>
+                                <option value="Gravação a Laser">Gravação a Laser</option>
+                                <option value="Transfer Laser">Transfer Laser</option>
+                                <option value="Silk Screen">Silk Screen</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Valor Unitário (R$) *</label>
+                            <input type="number" step="0.01" id="product-unit-price" min="0" value="0.00" oninput="calcTotal()" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Valor do Frete (R$)</label>
+                            <input type="number" step="0.01" id="order-shipping" min="0" value="0.00" oninput="calcTotal()" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <div class="md:col-span-3">
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Observações da Arte / Mensagem / Logotipo</label>
+                            <textarea id="product-notes" rows="2" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-indigo-500" placeholder="Descreva os detalhes da personalização, fontes, cores e textos..."></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="border-gray-100">
+
+                <!-- Status e Totalizador -->
+                <div class="flex flex-col md:flex-row items-center justify-between gap-4 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
+                    <div class="w-full md:w-1/2">
+                        <label class="block text-xs font-medium text-indigo-900 mb-1">Status do Pedido *</label>
+                        <select id="order-status" required class="w-full bg-white border border-indigo-200 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:border-indigo-500 font-medium text-indigo-900">
+                            <option value="Orçamento">Orçamento</option>
+                            <option value="Aguardando Arte">Aguardando Arte</option>
+                            <option value="Em Produção">Em Produção</option>
+                            <option value="Concluído">Concluído</option>
+                            <option value="Enviado">Enviado</option>
+                        </select>
+                    </div>
+                    <div class="w-full md:w-1/2 text-right">
+                        <span class="block text-xs text-indigo-700 uppercase font-semibold">Valor Total do Pedido</span>
+                        <span id="order-total-display" class="text-2xl font-black text-indigo-900">R$ 0,00</span>
+                    </div>
+                </div>
+
+                <!-- Botões de Ação -->
+                <div class="flex items-center justify-end gap-3 pt-2">
+                    <button type="button" onclick="closeOrderModal()" class="px-5 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">Cancelar</button>
+                    <button type="submit" class="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium shadow-sm transition">Salvar Ordem de Serviço</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL DE VISUALIZAÇÃO / IMPRESSÃO DA ORDEM DE SERVIÇO (COMPROVANTE) -->
+    <div id="print-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm hidden p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-gray-100 overflow-hidden my-8">
+            <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between no-print">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-print text-indigo-400"></i>
+                    <h3 class="font-bold text-lg">Comprovante de Ordem de Serviço</h3>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="window.print()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-print"></i> Imprimir
+                    </button>
+                    <button onclick="closePrintModal()" class="text-slate-400 hover:text-white transition">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Área de Impressão -->
+            <div id="print-area" class="p-8 space-y-6 bg-white text-gray-800">
+                <!-- Cabeçalho OS -->
+                <div class="flex justify-between items-start border-b border-gray-200 pb-6">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <div class="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold">
+                                <i class="fa-solid fa-mug-hot"></i>
+                            </div>
+                            <h2 class="text-xl font-black text-gray-900 tracking-wide">PRISMA DESIGN</h2>
+                        </div>
+                        <p class="text-xs text-gray-500">Fábrica de Canecas & Brindes Personalizados</p>
+                        <p class="text-xs text-gray-500">Atendimento em todo o Brasil 🇧🇷</p>
+                    </div>
+                    <div class="text-right">
+                        <h3 id="print-os-number" class="text-lg font-bold text-indigo-600">OS #0001</h3>
+                        <p id="print-date" class="text-xs text-gray-500">Data: 12/11/2026</p>
+                        <span id="print-status-badge" class="inline-block mt-2 px-2.5 py-1 rounded-full text-xs font-semibold">Em Produção</span>
+                    </div>
+                </div>
+
+                <!-- Dados Cliente -->
+                <div class="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-2">
+                    <h4 class="text-xs font-bold uppercase text-gray-400 tracking-wider">Dados do Cliente & Entrega</h4>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div><strong class="text-gray-500">Cliente:</strong> <span id="print-client-name">-</span></div>
+                        <div><strong class="text-gray-500">CPF/CNPJ:</strong> <span id="print-client-doc">-</span></div>
+                        <div><strong class="text-gray-500">WhatsApp:</strong> <span id="print-client-phone">-</span></div>
+                        <div><strong class="text-gray-500">Estado (UF):</strong> <span id="print-client-state">-</span></div>
+                        <div class="col-span-2"><strong class="text-gray-500">Endereço:</strong> <span id="print-client-address">-</span></div>
+                    </div>
+                </div>
+
+                <!-- Especificação do Pedido -->
+                <div>
+                    <h4 class="text-xs font-bold uppercase text-gray-400 tracking-wider mb-3">Especificações do Produto & Gravação</h4>
+                    <table class="w-full text-left text-sm border border-gray-200 rounded-xl overflow-hidden">
+                        <thead class="bg-gray-100 text-xs text-gray-600 uppercase">
+                            <tr>
+                                <th class="p-3">Produto</th>
+                                <th class="p-3">Cor</th>
+                                <th class="p-3">Gravação</th>
+                                <th class="p-3 text-center">Qtd</th>
+                                <th class="p-3 text-right">Unitário</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            <tr>
+                                <td id="print-prod-type" class="p-3 font-medium">-</td>
+                                <td id="print-prod-color" class="p-3">-</td>
+                                <td id="print-prod-method" class="p-3">-</td>
+                                <td id="print-prod-qty" class="p-3 text-center font-bold">1</td>
+                                <td id="print-prod-unit" class="p-3 text-right">R$ 0,00</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Observações -->
+                <div id="print-notes-container" class="text-sm">
+                    <h4 class="text-xs font-bold uppercase text-gray-400 tracking-wider mb-1">Observações / Arte</h4>
+                    <p id="print-prod-notes" class="p-3 bg-gray-50 rounded-xl border border-gray-100 text-gray-600 italic text-xs">-</p>
+                </div>
+
+                <!-- Valores -->
+                <div class="border-t border-gray-200 pt-4 flex justify-end">
+                    <div class="w-64 space-y-1.5 text-sm">
+                        <div class="flex justify-between text-gray-600">
+                            <span>Subtotal Produtos:</span>
+                            <span id="print-subtotal">R$ 0,00</span>
+                        </div>
+                        <div class="flex justify-between text-gray-600">
+                            <span>Frete (Envio Brasil):</span>
+                            <span id="print-shipping">R$ 0,00</span>
+                        </div>
+                        <div class="flex justify-between text-base font-black text-gray-900 border-t border-gray-200 pt-2">
+                            <span>Total Geral:</span>
+                            <span id="print-total" class="text-indigo-600">R$ 0,00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Assinatura / Rodapé da OS -->
+                <div class="pt-8 text-center text-xs text-gray-400 border-t border-gray-100">
+                    <p>Prisma Design - Transformando momentos em lembranças inesquecíveis.</p>
+                    <p class="mt-1">Documento gerado eletronicamente em <span id="print-current-datetime"></span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script de Gestão e Lógica -->
+    <script>
+        // Banco de Dados Local (LocalStorage)
+        let orders = JSON.parse(localStorage.getItem('prisma_orders')) || [
+            {
+                id: 'OS-2026-001',
+                date: '2026-11-10',
+                clientName: 'Ana Carolina Souza',
+                clientDoc: '123.456.789-00',
+                clientPhone: '(11) 98765-4321',
+                clientState: 'SP',
+                clientAddress: 'Rua das Flores, 123, Centro, São Paulo - SP',
+                productType: 'Inox Térmica',
+                productQty: 15,
+                productColor: 'Inox Escovado',
+                productMethod: 'Gravação a Laser',
+                productUnitPrice: 45.00,
+                shipping: 35.00,
+                productNotes: 'Logotipo da empresa na frente e nome de cada funcionário no verso.',
+                status: 'Em Produção'
+            },
+            {
+                id: 'OS-2026-002',
+                date: '2026-11-11',
+                clientName: 'Marcos Vinicius Lima',
+                clientDoc: '987.654.321-11',
+                clientPhone: '(21) 97123-4567',
+                clientState: 'RJ',
+                clientAddress: 'Av. Atlântica, 500, Copacabana, Rio de Janeiro - RJ',
+                productType: 'Cerâmica Branca',
+                productQty: 30,
+                productColor: 'Branca',
+                productMethod: 'Sublimação',
+                productUnitPrice: 22.00,
+                shipping: 45.00,
+                productNotes: 'Tema festa de aniversário infantil com foto.',
+                status: 'Aguardando Arte'
+            },
+            {
+                id: 'OS-2026-003',
+                date: '2026-11-12',
+                clientName: 'Empresa TechSol Ltda',
+                clientDoc: '45.123.789/0001-99',
+                clientPhone: '(31) 3222-4455',
+                clientState: 'MG',
+                clientAddress: 'Praça da Liberdade, 100, Savassi, Belo Horizonte - MG',
+                productType: 'Cerâmica Alça Cor',
+                productQty: 50,
+                productColor: 'Azul',
+                productMethod: 'Sublimação',
+                productUnitPrice: 25.00,
+                shipping: 50.00,
+                productNotes: 'Brindes de final de ano para colaboradores.',
+                status: 'Enviado'
+            }
+        ];
+
+        function saveToLocalStorage() {
+            localStorage.setItem('prisma_orders', JSON.stringify(orders));
+        }
+
+        // Troca de Abas
+        function switchTab(tabName) {
+            document.getElementById('tab-dashboard').classList.add('hidden');
+            document.getElementById('tab-orders').classList.add('hidden');
+
+            document.getElementById('nav-dashboard').classList.remove('bg-indigo-600', 'text-white', 'shadow-sm');
+            document.getElementById('nav-dashboard').classList.add('text-slate-400', 'hover:text-white', 'hover:bg-slate-800');
+
+            document.getElementById('nav-orders').classList.remove('bg-indigo-600', 'text-white', 'shadow-sm');
+            document.getElementById('nav-orders').classList.add('text-slate-400', 'hover:text-white', 'hover:bg-slate-800');
+
+            if (tabName === 'dashboard') {
+                document.getElementById('tab-dashboard').classList.remove('hidden');
+                document.getElementById('nav-dashboard').classList.add('bg-indigo-600', 'text-white', 'shadow-sm');
+                document.getElementById('nav-dashboard').classList.remove('text-slate-400', 'hover:text-white', 'hover:bg-slate-800');
+                document.getElementById('current-page-title').innerText = 'Dashboard Geral';
+                renderDashboard();
+            } else if (tabName === 'orders') {
+                document.getElementById('tab-orders').classList.remove('hidden');
+                document.getElementById('nav-orders').classList.add('bg-indigo-600', 'text-white', 'shadow-sm');
+                document.getElementById('nav-orders').classList.remove('text-slate-400', 'hover:text-white', 'hover:bg-slate-800');
+                document.getElementById('current-page-title').innerText = 'Controle de Pedidos & Ordens de Serviço';
+                renderFullOrdersTable();
+            }
+        }
+
+        // Formatação de Moeda
+        function formatMoney(val) {
+            return Number(val).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+
+        // Renderizar Dashboard
+        function renderDashboard() {
+            let openCount = 0;
+            let prodCount = 0;
+            let compCount = 0;
+            let shippedCount = 0;
+            let totalRevenue = 0;
+
+            orders.forEach(o => {
+                let total = (o.productQty * o.productUnitPrice) + (Number(o.shipping) || 0);
+                if (o.status === 'Orçamento' || o.status === 'Aguardando Arte') openCount++;
+                if (o.status === 'Em Produção') prodCount++;
+                if (o.status === 'Concluído') compCount++;
+                if (o.status === 'Enviado') {
+                    shippedCount++;
+                    totalRevenue += total;
+                }
+            });
+
+            document.getElementById('stat-open').innerText = openCount;
+            document.getElementById('stat-production').innerText = prodCount;
+            document.getElementById('stat-completed').innerText = compCount;
+            document.getElementById('stat-shipped').innerText = shippedCount;
+            document.getElementById('stat-revenue').innerText = formatMoney(totalRevenue);
+
+            // Tabela Recente (últimos 5)
+            let recentHTML = '';
+            const recent = [...orders].reverse().slice(0, 5);
+            recent.forEach(o => {
+                let total = (o.productQty * o.productUnitPrice) + (Number(o.shipping) || 0);
+                recentHTML += `
+                    <tr class="hover:bg-gray-50/50 transition">
+                        <td class="py-3 px-4 font-semibold text-indigo-600">${o.id}</td>
+                        <td class="py-3 px-4 font-medium text-gray-800">${o.clientName}</td>
+                        <td class="py-3 px-4 text-gray-600">${o.productType}</td>
+                        <td class="py-3 px-4 text-gray-600">${o.productQty} un</td>
+                        <td class="py-3 px-4 text-gray-600">${o.clientState}</td>
+                        <td class="py-3 px-4">${getStatusBadge(o.status)}</td>
+                        <td class="py-3 px-4 text-right font-bold text-gray-900">${formatMoney(total)}</td>
+                    </tr>
+                `;
+            });
+            document.getElementById('recent-orders-table').readOnly = true;
+            document.getElementById('recent-orders-table').innerHTML = recentHTML || `<tr><td colspan="7" class="text-center py-4 text-gray-400">Nenhum pedido recente cadastrado.</td></tr>`;
+        }
+
+        // Renderizar Tabela Completa de Pedidos
+        function renderFullOrdersTable(filteredList = null) {
+            const list = filteredList || orders;
+            let html = '';
+            [...list].reverse().forEach(o => {
+                let total = (o.productQty * o.productUnitPrice) + (Number(o.shipping) || 0);
+                html += `
+                    <tr class="hover:bg-gray-50/50 transition">
+                        <td class="py-3.5 px-4 font-semibold text-indigo-600">${o.id}</td>
+                        <td class="py-3.5 px-4 text-gray-500 text-xs">${o.date}</td>
+                        <td class="py-3.5 px-4">
+                            <div class="font-medium text-gray-900">${o.clientName}</div>
+                            <div class="text-xs text-gray-400">${o.clientPhone}</div>
+                        </td>
+                        <td class="py-3.5 px-4">
+                            <div class="text-gray-800">${o.productType} (${o.productQty}x)</div>
+                            <div class="text-xs text-gray-400">${o.productMethod}</div>
+                        </td>
+                        <td class="py-3.5 px-4 font-semibold text-gray-700">${o.clientState}</td>
+                        <td class="py-3.5 px-4">
+                            <select onchange="updateOrderStatus('${o.id}', this.value)" class="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white focus:outline-none focus:border-indigo-500">
+                                <option value="Orçamento" ${o.status === 'Orçamento' ? 'selected' : ''}>Orçamento</option>
+                                <option value="Aguardando Arte" ${o.status === 'Aguardando Arte' ? 'selected' : ''}>Aguardando Arte</option>
+                                <option value="Em Produção" ${o.status === 'Em Produção' ? 'selected' : ''}>Em Produção</option>
+                                <option value="Concluído" ${o.status === 'Concluído' ? 'selected' : ''}>Concluído</option>
+                                <option value="Enviado" ${o.status === 'Enviado' ? 'selected' : ''}>Enviado</option>
+                            </select>
+                        </td>
+                        <td class="py-3.5 px-4 font-bold text-gray-900">${formatMoney(total)}</td>
+                        <td class="py-3.5 px-4 text-center">
+                            <div class="flex items-center justify-center gap-2">
+                                <button onclick="openPrintModal('${o.id}')" title="Visualizar / Imprimir OS" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition">
+                                    <i class="fa-solid fa-print text-xs"></i>
+                                </button>
+                                <button onclick="editOrder('${o.id}')" title="Editar OS" class="w-8 h-8 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-600 flex items-center justify-center transition">
+                                    <i class="fa-solid fa-pen text-xs"></i>
+                                </button>
+                                <button onclick="deleteOrder('${o.id}')" title="Excluir OS" class="w-8 h-8 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center transition">
+                                    <i class="fa-solid fa-trash text-xs"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+            document.getElementById('full-orders-table').innerHTML = html || `<tr><td colspan="8" class="text-center py-6 text-gray-400">Nenhum pedido encontrado.</td></tr>`;
+        }
+
+        // Status Badge Helper
+        function getStatusBadge(status) {
+            let colors = {
+                'Orçamento': 'bg-amber-50 text-amber-700 border-amber-200',
+                'Aguardando Arte': 'bg-purple-50 text-purple-700 border-purple-200',
+                'Em Produção': 'bg-indigo-50 text-indigo-700 border-indigo-200',
+                'Concluído': 'bg-blue-50 text-blue-700 border-blue-200',
+                'Enviado': 'bg-emerald-50 text-emerald-700 border-emerald-200'
+            };
+            let cls = colors[status] || 'bg-gray-50 text-gray-700 border-gray-200';
+            return `<span class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold border ${cls}">${status}</span>`;
+        }
+
+        // Filtros e Busca
+        function filterOrders() {
+            const query = document.getElementById('search-input').value.toLowerCase();
+            const statusVal = document.getElementById('status-filter').value;
+
+            const filtered = orders.filter(o => {
+                const matchQuery = o.clientName.toLowerCase().includes(query) || o.clientDoc.toLowerCase().includes(query) || o.id.toLowerCase().includes(query);
+                const matchStatus = statusVal === 'ALL' || o.status === statusVal;
+                return matchQuery && matchStatus;
+            });
+            renderFullOrdersTable(filtered);
+        }
+
+        // Cálculo Dinâmico no Modal
+        function calcTotal() {
+            const qty = parseFloat(document.getElementById('product-qty').value) || 0;
+            const unitPrice = parseFloat(document.getElementById('product-unit-price').value) || 0;
+            const shipping = parseFloat(document.getElementById('order-shipping').value) || 0;
+            const total = (qty * unitPrice) + shipping;
+            document.getElementById('order-total-display').innerText = formatMoney(total);
+        }
+
+        // Abrir Modal de Nova OS
+        function openNewOrderModal() {
+            document.getElementById('order-form').reset();
+            document.getElementById('order-id').value = '';
+            document.getElementById('modal-order-title').innerText = 'Nova Ordem de Serviço / Pedido';
+            document.getElementById('product-qty').value = 1;
+            document.getElementById('product-unit-price').value = '0.00';
+            document.getElementById('order-shipping').value = '0.00';
+            calcTotal();
+            document.getElementById('order-modal').classList.remove('hidden');
+        }
+
+        function closeOrderModal() {
+            document.getElementById('order-modal').classList.add('hidden');
+        }
+
+        // Salvar OS (Criar ou Atualizar)
+        function saveOrder(event) {
+            event.preventDefault();
+            const idVal = document.getElementById('order-id').value;
+            const orderData = {
+                id: idVal || `OS-2026-${String(orders.length + 1).padStart(3, '0')}`,
+                date: idVal ? orders.find(o => o.id === idVal).date : new Date().toISOString().split('T')[0],
+                clientName: document.getElementById('client-name').value,
+                clientDoc: document.getElementById('client-doc').value,
+                clientPhone: document.getElementById('client-phone').value,
+                clientState: document.getElementById('client-state').value,
+                clientAddress: document.getElementById('client-address').value,
+                productType: document.getElementById('product-type').value,
+                productQty: parseInt(document.getElementById('product-qty').value),
+                productColor: document.getElementById('product-color').value,
+                productMethod: document.getElementById('product-print-method').value,
+                productUnitPrice: parseFloat(document.getElementById('product-unit-price').value),
+                shipping: parseFloat(document.getElementById('order-shipping').value) || 0,
+                productNotes: document.getElementById('product-notes').value,
+                status: document.getElementById('order-status').value
+            };
+
+            if (idVal) {
+                const index = orders.findIndex(o => o.id === idVal);
+                if (index !== -1) orders[index] = orderData;
+                showCustomModal('Sucesso!', 'Ordem de serviço atualizada com sucesso.', 'success');
+            } else {
+                orders.push(orderData);
+                showCustomModal('Sucesso!', 'Nova Ordem de Serviço cadastrada com sucesso.', 'success');
+            }
+
+            saveToLocalStorage();
+            closeOrderModal();
+            renderDashboard();
+            if (!document.getElementById('tab-orders').classList.contains('hidden')) {
+                renderFullOrdersTable();
+            }
+        }
+
+        // Editar OS
+        function editOrder(id) {
+            const o = orders.find(item => item.id === id);
+            if (!o) return;
+
+            document.getElementById('order-id').value = o.id;
+            document.getElementById('modal-order-title').innerText = `Editar Ordem de Serviço (${o.id})`;
+            document.getElementById('client-name').value = o.clientName;
+            document.getElementById('client-doc').value = o.clientDoc;
+            document.getElementById('client-phone').value = o.clientPhone;
+            document.getElementById('client-state').value = o.clientState;
+            document.getElementById('client-address').value = o.clientAddress;
+            document.getElementById('product-type').value = o.productType;
+            document.getElementById('product-qty').value = o.productQty;
+            document.getElementById('product-color').value = o.productColor;
+            document.getElementById('product-print-method').value = o.productMethod;
+            document.getElementById('product-unit-price').value = o.productUnitPrice;
+            document.getElementById('order-shipping').value = o.shipping || 0;
+            document.getElementById('product-notes').value = o.productNotes;
+            document.getElementById('order-status').value = o.status;
+
+            calcTotal();
+            document.getElementById('order-modal').classList.remove('hidden');
+        }
+
+        // Atualizar Status Direto na Tabela
+        function updateOrderStatus(id, newStatus) {
+            const o = orders.find(item => item.id === id);
+            if (o) {
+                o.status = newStatus;
+                saveToLocalStorage();
+                renderDashboard();
+                showCustomModal('Status Atualizado', `A OS ${o.id} foi alterada para "${newStatus}".`, 'success');
+            }
+        }
+
+        // Excluir OS
+        function deleteOrder(id) {
+            if (confirm(`Deseja realmente excluir a ordem de serviço ${id}?`)) {
+                orders = orders.filter(o => o.id !== id);
+                saveToLocalStorage();
+                renderDashboard();
+                renderFullOrdersTable();
+                showCustomModal('Excluído', 'Ordem de serviço removida com sucesso.', 'info');
+            }
+        }
+
+        // Visualizar Comprovante / Impressão
+        function openPrintModal(id) {
+            const o = orders.find(item => item.id === id);
+            if (!o) return;
+
+            document.getElementById('print-os-number').innerText = o.id;
+            document.getElementById('print-date').innerText = `Data: ${o.date.split('-').reverse().join('/')}`;
+            
+            const badge = document.getElementById('print-status-badge');
+            badge.innerText = o.status;
+            badge.className = 'inline-block mt-2 px-2.5 py-1 rounded-full text-xs font-semibold ' + {
+                'Orçamento': 'bg-amber-50 text-amber-700',
+                'Aguardando Arte': 'bg-purple-50 text-purple-700',
+                'Em Produção': 'bg-indigo-50 text-indigo-700',
+                'Concluído': 'bg-blue-50 text-blue-700',
+                'Enviado': 'bg-emerald-50 text-emerald-700'
+            }[o.status];
+
+            document.getElementById('print-client-name').innerText = o.clientName;
+            document.getElementById('print-client-doc').innerText = o.clientDoc;
+            document.getElementById('print-client-phone').innerText = o.clientPhone;
+            document.getElementById('print-client-state').innerText = o.clientState;
+            document.getElementById('print-client-address').innerText = o.clientAddress;
+
+            document.getElementById('print-prod-type').innerText = o.productType;
+            document.getElementById('print-prod-color').innerText = o.productColor || 'Padrão';
+            document.getElementById('print-prod-method').innerText = o.productMethod;
+            document.getElementById('print-prod-qty').innerText = o.productQty;
+            document.getElementById('print-prod-unit').innerText = formatMoney(o.productUnitPrice);
+
+            const notesContainer = document.getElementById('print-notes-container');
+            if (o.productNotes) {
+                notesContainer.style.display = 'block';
+                document.getElementById('print-prod-notes').innerText = o.productNotes;
+            } else {
+                notesContainer.style.display = 'none';
+            }
+
+            const subtotal = o.productQty * o.productUnitPrice;
+            const shipping = Number(o.shipping) || 0;
+            const total = subtotal + shipping;
+
+            document.getElementById('print-subtotal').innerText = formatMoney(subtotal);
+            document.getElementById('print-shipping').innerText = formatMoney(shipping);
+            document.getElementById('print-total').innerText = formatMoney(total);
+
+            document.getElementById('print-current-datetime').innerText = new Date().toLocaleString('pt-BR');
+            document.getElementById('print-modal').classList.remove('hidden');
+        }
+
+        function closePrintModal() {
+            document.getElementById('print-modal').classList.add('hidden');
+        }
+
+        // Funções do Modal Customizado (Substituto elegante para alert/confirm)
+        function showCustomModal(title, message, type = 'success') {
+            const modal = document.getElementById('custom-modal');
+            const iconDiv = document.getElementById('modal-icon');
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-message').innerText = message;
+
+            if (type === 'success') {
+                iconDiv.className = 'w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 text-xl bg-emerald-50 text-emerald-600';
+                iconDiv.innerHTML = '<i class="fa-solid fa-check"></i>';
+            } else {
+                iconDiv.className = 'w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 text-xl bg-indigo-50 text-indigo-600';
+                iconDiv.innerHTML = '<i class="fa-solid fa-info"></i>';
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('custom-modal').classList.add('hidden');
+        }
+
+        // Inicialização
+        window.onload = function() {
+            renderDashboard();
+        };
+    </script>
+</body>
+</html>
